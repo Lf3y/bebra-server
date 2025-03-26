@@ -166,7 +166,7 @@ def delete_expired_keys_request():
     try:
         with app.app_context():
             tz_moscow = pytz.timezone("Europe/Moscow")
-            now_moscow = datetime.datetime.now(tz_moscow)  # Текущее время в Москве
+            now_moscow = datetime.datetime.now(tz_moscow) + timedelta(hours=3)  # Текущее время в Москве
             
             logging.debug(f"Удаление просроченных ключей. Текущее время в Москве: {now_moscow}")
 
