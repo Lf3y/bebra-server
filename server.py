@@ -165,10 +165,14 @@ def delete_expired_keys_request():
     """Удаляет все просроченные ключи при вызове запроса."""
     try:
         with app.app_context():
-            tz = pytz.timezone("Europe/Moscow")  # Указываем нужный часовой пояс
-            now = datetime.datetime.now(tz)
+            tz_moscow = pytz.timezone("Europe/Moscow")
+            now_moscow = datetime.datetime.now(tz_moscow)  # Текущее время в Москве
             
-            expired_keys = Key.query.filter(Key.expiration_time <= now).all()
+            logging.debug(f"Удаление просроченных ключей. Текущее время в Москве: {now_moscow}")
+
+            expired_keys = Key.query.filter(Key.expiration_time <= now_moscow).all()
+            logging.debug(f"Найдено {len(expired_keys)} просроченных ключей")
+
             if expired_keys:
                 for key in expired_keys:
                     db.session.delete(key)
