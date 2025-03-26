@@ -159,8 +159,26 @@ def delete_expired_keys():
             else:
                 print("Нет просроченных ключей")
 
-        time.sleep(120)  # Проверка раз в час
 
+@app.route('/delete_expired_keys', methods=['POST'])
+def delete_expired_keys_request():
+    """Удаляет все просроченные ключи при вызове запроса."""
+    try:
+        with app.app_context():
+            tz = pytz.timezone("Europe/Moscow")  # Указываем нужный часовой пояс
+            now = datetime.datetime.now(tz)
+            
+            expired_keys = Key.query.filter(Key.expiration_time <= now).all()
+            if expired_keys:
+                for key in expired_keys:
+                    db.session.delete(key)
+                db.session.commit()
+                return jsonify({"message": f"Удалено {len(expired_keys)} просроченных ключей"}), 200
+            else:
+                return jsonify({"message": "Нет просроченных ключей"}), 200
+    except Exception as e:
+        logging.error(f"Ошибка при удалении просроченных ключей: {e}")
+        return jsonify({"error": "Ошибка сервера"}), 500
+    
 if __name__ == '__main__':
-    threading.Thread(target=delete_expired_keys, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, debug=True)
