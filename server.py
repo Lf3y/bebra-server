@@ -9,7 +9,7 @@ import pytz
 import os
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('postgresql://bebra_data_user:jz7fi1LQElfbWi0WbSnPhQJ0rBDzxsqU@dpg-cvht59t2ng1s739v1ug0-a/bebra_data')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://bebra_data_user:jz7fi1LQElfbWi0WbSnPhQJ0rBDzxsqU@dpg-cvht59t2ng1s739v1ug0-a/bebra_data')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
