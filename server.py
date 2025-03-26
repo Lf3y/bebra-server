@@ -171,6 +171,8 @@ def delete_expired_keys_request():
             logging.debug(f"Удаление просроченных ключей. Текущее время в Москве: {now_moscow}")
 
             expired_keys = Key.query.filter(Key.expiration_time <= now_moscow).all()
+            print(Key.expiration_time)
+            print(now_moscow)
             logging.debug(f"Найдено {len(expired_keys)} просроченных ключей")
 
             if expired_keys:
