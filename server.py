@@ -19,9 +19,11 @@ logging.basicConfig(level=logging.DEBUG)
 # Модель для хранения ключей
 class Key(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(36), unique=True, nullable=False)  # Уникальный ключ
-    expiration_time = db.Column(db.DateTime, nullable=False)  # Время истечения
-    user_hwid = db.Column(db.String(100), nullable=True)  # HWID пользователя
+    key = db.Column(db.String(36), unique=True, nullable=False)
+    expiration_time = db.Column(db.DateTime, nullable=False)
+    user_hwid = db.Column(db.String(100), nullable=True)
+    creator_name = db.Column(db.String(100), nullable=True)  # Добавлено
+    duration = db.Column(db.Integer, nullable=True)  # Добавлено, в секундах
 
     def __repr__(self):
         return f'<Key {self.key}>'
@@ -30,11 +32,15 @@ class Key(db.Model):
 with app.app_context():
     db.create_all()
 
-# Функция для генерации уникального ключа
-def generate_unique_key(expiration_duration):
-    key = str(uuid.uuid4())  # Генерация уникального ключа
-    expiration_time = datetime.datetime.utcnow() + expiration_duration
-    new_key = Key(key=key, expiration_time=expiration_time)
+def generate_unique_key(expiration_duration, creator_name):
+    key = str(uuid.uuid4())
+    expiration_time = datetime.datetime.utcnow()  # Пока просто текущее, потом обновим при активации
+    new_key = Key(
+        key=key,
+        expiration_time=expiration_time,
+        creator_name=creator_name,
+        duration=int(expiration_duration.total_seconds())
+    )
     db.session.add(new_key)
     db.session.commit()
     return key, expiration_time
@@ -61,57 +67,70 @@ def verify_key_with_hwid(key, hwid):
 @app.route('/generate_key', methods=['POST'])
 def generate_key():
     try:
-        duration = request.json.get('duration', 'day')  # По умолчанию - день
+        duration_code = str(request.json.get('duration', '1'))  # По умолчанию — 1 (день)
+        creator_name = request.json.get('creator', 'unknown')
 
-        if duration == 'day':
-            expiration_duration = datetime.timedelta(days=1, hours=3)
-        elif duration == 'week':
-            expiration_duration = datetime.timedelta(weeks=1, hours=3)
-        elif duration == 'month':
-            expiration_duration = datetime.timedelta(weeks=4, hours=3)
-        elif duration == '30sec':
-            expiration_duration = datetime.timedelta(seconds=10, hours=3)  # Генерация на 30 секунд
-        else:
-            return jsonify({"error": "Invalid duration. Choose 'day', 'week', or 'month'."}), 400
-
-        key, expiration_time = generate_unique_key(expiration_duration)
-        
-        response = {
-            "key": key,
-            "expiration_time": expiration_time.strftime('%Y-%m-%d %H:%M:%S')
+        # Установка времени по коду
+        duration_map = {
+            '1': datetime.timedelta(days=1, hours=3),
+            '2': datetime.timedelta(weeks=1, hours=3),
+            '3': datetime.timedelta(weeks=4, hours=3),    # 1 месяц
+            '4': datetime.timedelta(weeks=12, hours=3),   # 3 месяца
+            '5': datetime.timedelta(weeks=24, hours=3),   # 6 месяцев
+            '6': datetime.timedelta(weeks=52, hours=3),   # 1 год
+            '7': datetime.timedelta(days=365*999)         # Навсегда (примерно)
         }
 
-        logging.debug(f"Generated key: {response}")
-        return jsonify(response)
-    
+        expiration_duration = duration_map.get(duration_code)
+
+        if not expiration_duration:
+            return jsonify({"error": "Invalid duration code. Use 1-7."}), 400
+
+        key, _ = generate_unique_key(expiration_duration, creator_name)
+
+        return jsonify({
+            "key": key,
+            "duration_seconds": expiration_duration.total_seconds(),
+            "human_readable": duration_code
+        }), 200
+
     except Exception as e:
         logging.error(f"Error generating key: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
-@app.route('/verify_key', methods=['POST'])
-def verify_key():
-    try:
-        key = request.json.get('key')
-        hwid = request.json.get('hwid')
+def verify_key_with_hwid(key, hwid):
+    stored_key = Key.query.filter_by(key=key).first()
 
-        if not key or not hwid:
-            return jsonify({"error": "Key and HWID are required"}), 400
+    if not stored_key:
+        return False, "Invalid key"
 
-        is_valid, message = verify_key_with_hwid(key, hwid)
+    # Первый вход: устанавливаем expiration_time
+    if stored_key.user_hwid is None:
+        stored_key.user_hwid = hwid
+        stored_key.expiration_time = datetime.datetime.utcnow() + datetime.timedelta(seconds=stored_key.duration)
+        db.session.commit()
 
-        if is_valid:
-            return jsonify({"valid": True, "message": message}), 200
-        else:
-            return jsonify({"valid": False, "error": message}), 401
-    except Exception as e:
-        logging.error(f"Error verifying key: {e}")
-        return jsonify({"error": "Internal server error"}), 500
+    # Проверяем срок действия
+    if stored_key.expiration_time < datetime.datetime.utcnow():
+        return False, "Key expired"
+
+    if stored_key.user_hwid != hwid:
+        return False, "Key is already used on another device"
+
+    return True, "Key is valid"
 
 @app.route('/keys', methods=['GET'])
 def get_keys():
     try:
         keys = Key.query.all()
-        key_list = [{"id": key.id, "key": key.key, "expiration_time": key.expiration_time.strftime('%Y-%m-%d %H:%M:%S'), "hwid": key.user_hwid} for key in keys]
+        key_list = [{
+            "id": key.id,
+            "key": key.key,
+            "expiration_time": key.expiration_time.strftime('%Y-%m-%d %H:%M:%S'),
+            "hwid": key.user_hwid,
+            "creator": key.creator_name,
+            "duration": key.duration
+        } for key in keys]
         return jsonify(key_list)
     except Exception as e:
         logging.error(f"Error fetching keys: {e}")
