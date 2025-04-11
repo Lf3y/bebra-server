@@ -44,7 +44,7 @@ def generate_unique_key(expiration_duration, creator_name):
     )
     db.session.add(new_key)
     db.session.commit()
-    return key, expiration_time
+    return key, None
 
 # Функция для проверки ключа и HWID
 def verify_key_with_hwid(key, hwid):
@@ -127,10 +127,10 @@ def get_keys():
         key_list = [{
             "id": key.id,
             "key": key.key,
-            "expiration_time": key.expiration_time.strftime('%Y-%m-%d %H:%M:%S'),
-            "hwid": key.user_hwid,
-            "creator": key.creator_name,
-            "duration": key.duration
+            "expiration_time": key.expiration_time.strftime('%Y-%m-%d %H:%M:%S') if key.expiration_time else "не установлено",
+            "hwid": key.user_hwid or "Ключ не привязан",
+            "creator": key.creator_name or "не указано",
+            "duration_seconds": key.duration
         } for key in keys]
         return jsonify(key_list)
     except Exception as e:
