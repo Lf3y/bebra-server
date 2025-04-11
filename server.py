@@ -30,12 +30,10 @@ class Key(db.Model):
 
 # Создание базы данных (если еще не создана)
 with app.app_context():
-    Key.__table__.drop(db.engine)
     db.create_all()
 
 def generate_unique_key(expiration_duration, creator_name):
     key = str(uuid.uuid4())
-    expiration_time = datetime.datetime.utcnow()  # Пока просто текущее, потом обновим при активации
     new_key = Key(
         key=key,
         expiration_time=None,
@@ -98,7 +96,9 @@ def generate_key():
     except Exception as e:
         logging.error(f"Error generating key: {e}")
         return jsonify({"error": "Internal server error"}), 500
+    
 
+@app.route('/verify_key', methods=['POST'])
 def verify_key_with_hwid(key, hwid):
     stored_key = Key.query.filter_by(key=key).first()
 
