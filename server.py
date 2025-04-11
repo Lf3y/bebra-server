@@ -98,7 +98,7 @@ def generate_key():
         return jsonify({"error": "Internal server error"}), 500
     
 
-@app.route('/verify_key', methods=['POST'])
+
 def verify_key_with_hwid(key, hwid):
     stored_key = Key.query.filter_by(key=key).first()
 
@@ -120,6 +120,26 @@ def verify_key_with_hwid(key, hwid):
 
     return True, "Key is valid"
 
+# Роут
+@app.route('/verify_key', methods=['POST'])
+def verify_key_route():
+    try:
+        data = request.json
+        key = data.get("key")
+        hwid = data.get("hwid")
+
+        if not key or not hwid:
+            return jsonify({"error": "Missing key or hwid"}), 400
+
+        success, message = verify_key_with_hwid(key, hwid)
+        status_code = 200 if success else 400
+
+        return jsonify({"success": success, "message": message}), status_code
+
+    except Exception as e:
+        logging.error(f"Error verifying key: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+    
 @app.route('/keys', methods=['GET'])
 def get_keys():
     try:
