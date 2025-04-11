@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.DEBUG)
 class Key(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(36), unique=True, nullable=False)
-    expiration_time = db.Column(db.DateTime, nullable=False)
+    expiration_time = db.Column(db.DateTime, nullable=True)
     user_hwid = db.Column(db.String(100), nullable=True)
     creator_name = db.Column(db.String(100), nullable=True)  # Добавлено
     duration = db.Column(db.Integer, nullable=True)  # Добавлено, в секундах
@@ -38,7 +38,7 @@ def generate_unique_key(expiration_duration, creator_name):
     expiration_time = datetime.datetime.utcnow()  # Пока просто текущее, потом обновим при активации
     new_key = Key(
         key=key,
-        expiration_time=expiration_time,
+        expiration_time=None,
         creator_name=creator_name,
         duration=int(expiration_duration.total_seconds())
     )
