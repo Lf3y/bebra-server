@@ -77,7 +77,7 @@ def generate_key():
             '4': datetime.timedelta(weeks=12, hours=3),   # 3 месяца
             '5': datetime.timedelta(weeks=24, hours=3),   # 6 месяцев
             '6': datetime.timedelta(weeks=52, hours=3),   # 1 год
-            '7': datetime.timedelta(days=365*999)         # Навсегда (примерно)
+            '7': datetime.timedelta(days=365*10)         # Навсегда (примерно)
         }
 
         expiration_duration = duration_map.get(duration_code)
