@@ -30,6 +30,7 @@ class Key(db.Model):
 
 # Создание базы данных (если еще не создана)
 with app.app_context():
+    Key.__table__.drop(db.engine)
     db.create_all()
 
 def generate_unique_key(expiration_duration, creator_name):
